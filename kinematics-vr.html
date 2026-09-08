@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>PhysicsVR — Kinematics Lab</title>
+  <meta name="description" content="Interactive VR kinematics demo for high school physics">
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0a0e1a;
+      color: #e8eaf6;
+      overflow-x: hidden;
+    }
+
+    /* ── HUD overlay ── */
+    #hud {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 10;
+      display: flex;
+      align-items: stretch;
+      gap: 0;
+      background: rgba(10,14,26,0.92);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid rgba(99,179,237,0.2);
+      padding: 0 1rem;
+      height: 54px;
+    }
+
+    #hud .brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding-right: 1.5rem;
+      border-right: 1px solid rgba(255,255,255,0.08);
+      margin-right: 1rem;
+    }
+    #hud .brand span { font-size: 13px; font-weight: 700; letter-spacing: 0.06em; color: #63b3ed; text-transform: uppercase; }
+    #hud .brand sub { font-size: 10px; color: #a0aec0; font-weight: 400; letter-spacing: 0; }
+
+    .stat-group {
+      display: flex;
+      align-items: center;
+      gap: 1.2rem;
+      padding: 0 1rem;
+      border-right: 1px solid rgba(255,255,255,0.06);
+    }
+    .stat {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 1px;
+    }
+    .stat label {
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #718096;
+    }
+    .stat .val {
+      font-size: 15px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: #fff;
+      min-width: 70px;
+    }
+    .stat .val.highlight { color: #63b3ed; }
+    .stat .unit {
+      font-size: 9px;
+      color: #718096;
+      font-weight: 400;
+    }
+
+    #controls-bar {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      z-index: 10;
+      background: rgba(10,14,26,0.95);
+      backdrop-filter: blur(8px);
+      border-top: 1px solid rgba(99,179,237,0.15);
+      padding: 10px 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 2rem;
+      flex-wrap: wrap;
+    }
+
+    .ctrl-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .ctrl-group label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #a0aec0;
+      white-space: nowrap;
+    }
+    .ctrl-group input[type=range] {
+      width: 110px;
+      accent-color: #63b3ed;
+      cursor: pointer;
+    }
+    .ctrl-group .ctrl-val {
+      font-size: 12px;
+      font-weight: 700;
+      color: #63b3ed;
+      min-width: 46px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .btn {
+      padding: 7px 18px;
+      border: none;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-transform: uppercase;
+    }
+    #throwBtn {
+      background: #3182ce;
+      color: #fff;
+    }
+    #throwBtn:hover { background: #63b3ed; }
+    #throwBtn:disabled { background: #2d3748; color: #4a5568; cursor: not-allowed; }
+    #resetBtn {
+      background: transparent;
+      color: #a0aec0;
+      border: 1px solid #2d3748;
+    }
+    #resetBtn:hover { border-color: #63b3ed; color: #63b3ed; }
+
+    #concept-box {
+      position: fixed;
+      right: 1rem;
+      top: 64px;
+      width: 230px;
+      z-index: 10;
+      background: rgba(10,14,26,0.93);
+      border: 1px solid rgba(99,179,237,0.2);
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 12px;
+    }
+    #concept-box h4 {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #63b3ed;
+      margin-bottom: 8px;
+    }
+    #concept-text {
+      color: #cbd5e0;
+      line-height: 1.6;
+      font-size: 12px;
+    }
+    #formula-box {
+      margin-top: 8px;
+      padding: 7px 9px;
+      background: rgba(99,179,237,0.07);
+      border-radius: 6px;
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      color: #90cdf4;
+      line-height: 1.7;
+    }
+
+    #phase-badge {
+      position: fixed;
+      left: 50%;
+      transform: translateX(-50%);
+      top: 64px;
+      z-index: 10;
+      background: rgba(49,130,206,0.18);
+      border: 1px solid rgba(99,179,237,0.35);
+      border-radius: 20px;
+      padding: 4px 16px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #90cdf4;
+      pointer-events: none;
+    }
+
+    a-scene { width: 100vw; height: 100vh; display: block; }
+  </style>
+</head>
+<body>
+
+<!-- ── TOP HUD ── -->
+<div id="hud">
+  <div class="brand">
+    <span>PhysicsVR <sub>Kinematics Lab</sub></span>
+  </div>
+
+  <div class="stat-group">
+    <div class="stat">
+      <label>Height</label>
+      <div class="val highlight" id="statHeight">0.00</div>
+      <div class="unit">meters</div>
+    </div>
+    <div class="stat">
+      <label>Distance</label>
+      <div class="val" id="statDist">0.00</div>
+      <div class="unit">meters</div>
+    </div>
+  </div>
+
+  <div class="stat-group">
+    <div class="stat">
+      <label>Speed</label>
+      <div class="val" id="statSpeed">0.00</div>
+      <div class="unit">m/s</div>
+    </div>
+    <div class="stat">
+      <label>Velocity X</label>
+      <div class="val" id="statVx">0.00</div>
+      <div class="unit">m/s</div>
+    </div>
+    <div class="stat">
+      <label>Velocity Y</label>
+      <div class="val" id="statVy">0.00</div>
+      <div class="unit">m/s</div>
+    </div>
+  </div>
+
+  <div class="stat-group">
+    <div class="stat">
+      <label>Momentum</label>
+      <div class="val" id="statMom">0.00</div>
+      <div class="unit">kg·m/s</div>
+    </div>
+    <div class="stat">
+      <label>KE</label>
+      <div class="val" id="statKE">0.00</div>
+      <div class="unit">Joules</div>
+    </div>
+  </div>
+
+  <div class="stat-group">
+    <div class="stat">
+      <label>Air Time</label>
+      <div class="val" id="statTime">0.00</div>
+      <div class="unit">seconds</div>
+    </div>
+    <div class="stat">
+      <label>Accel (g)</label>
+      <div class="val" id="statG">9.81</div>
+      <div class="unit">m/s²</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── PHASE BADGE ── -->
+<div id="phase-badge">Ready to throw</div>
+
+<!-- ── CONCEPT PANEL ── -->
+<div id="concept-box">
+  <h4>📐 Khan Academy Concept</h4>
+  <div id="concept-text">Adjust the angle and initial speed, then throw the ball. Watch how kinematics plays out in real time.</div>
+  <div id="formula-box">
+    vₓ = v₀·cos(θ)<br>
+    vᵧ = v₀·sin(θ) − g·t<br>
+    x = vₓ·t<br>
+    y = h₀ + vᵧ·t − ½g·t²
+  </div>
+</div>
+
+<!-- ── BOTTOM CONTROLS ── -->
+<div id="controls-bar">
+  <div class="ctrl-group">
+    <label>Launch Speed</label>
+    <input id="speedSlider" type="range" min="2" max="20" step="0.5" value="10">
+    <span class="ctrl-val" id="speedVal">10 m/s</span>
+  </div>
+
+  <div class="ctrl-group">
+    <label>Angle</label>
+    <input id="angleSlider" type="range" min="5" max="85" step="1" value="45">
+    <span class="ctrl-val" id="angleVal">45°</span>
+  </div>
+
+  <div class="ctrl-group">
+    <label>Launch Height</label>
+    <input id="heightSlider" type="range" min="0.5" max="6" step="0.5" value="1.5">
+    <span class="ctrl-val" id="heightVal">1.5 m</span>
+  </div>
+
+  <div class="ctrl-group">
+    <label>Mass</label>
+    <input id="massSlider" type="range" min="0.1" max="5" step="0.1" value="1">
+    <span class="ctrl-val" id="massVal">1.0 kg</span>
+  </div>
+
+  <div class="ctrl-group">
+    <label>Gravity</label>
+    <input id="gravSlider" type="range" min="1" max="25" step="0.5" value="9.81">
+    <span class="ctrl-val" id="gravVal">9.81 m/s²</span>
+  </div>
+
+  <button class="btn" id="throwBtn">🚀 Throw</button>
+  <button class="btn" id="resetBtn">↺ Reset</button>
+</div>
+
+<!-- ── A-FRAME SCENE ── -->
+<a-scene background="color: #0a0e1a" renderer="antialias: true" vr-mode-ui="enabled: true">
+
+  <!-- Sky gradient -->
+  <a-sky color="#0d1b2e"></a-sky>
+
+  <!-- Ground -->
+  <a-plane id="ground"
+    rotation="-90 0 0"
+    width="100" height="100"
+    color="#1a2035"
+    shadow="receive: true">
+  </a-plane>
+
+  <!-- Grid lines on ground -->
+  <a-entity id="gridLines"></a-entity>
+
+  <!-- Origin marker -->
+  <a-cylinder id="originMarker"
+    position="0 0.01 0"
+    radius="0.15" height="0.02"
+    color="#63b3ed" opacity="0.8">
+  </a-cylinder>
+
+  <!-- Launch platform -->
+  <a-box id="platform"
+    position="0 0.75 0"
+    width="1.2" height="1.5" depth="1.2"
+    color="#1e3a5f"
+    shadow="cast: true; receive: true">
+  </a-box>
+
+  <!-- Height pole visual -->
+  <a-cylinder id="heightPole"
+    position="-0.7 0 0"
+    radius="0.03" height="7"
+    color="#2d4a6e" opacity="0.5">
+  </a-cylinder>
+
+  <!-- Height labels on pole -->
+  <a-text id="poleLabel1" value="1m" position="-1.1 1 0" color="#4a90d9" width="3" align="right"></a-text>
+  <a-text id="poleLabel2" value="2m" position="-1.1 2 0" color="#4a90d9" width="3" align="right"></a-text>
+  <a-text id="poleLabel3" value="3m" position="-1.1 3 0" color="#4a90d9" width="3" align="right"></a-text>
+  <a-text id="poleLabel4" value="4m" position="-1.1 4 0" color="#4a90d9" width="3" align="right"></a-text>
+  <a-text id="poleLabel5" value="5m" position="-1.1 5 0" color="#4a90d9" width="3" align="right"></a-text>
+  <a-text id="poleLabel6" value="6m" position="-1.1 6 0" color="#4a90d9" width="3" align="right"></a-text>
+
+  <!-- THE BALL -->
+  <a-sphere id="ball"
+    position="0 1.5 0"
+    radius="0.18"
+    color="#e53e3e"
+    shadow="cast: true">
+  </a-sphere>
+
+  <!-- Velocity arrow (visual indicator) -->
+  <a-cylinder id="velArrow"
+    radius="0.04" height="1"
+    color="#48bb78"
+    visible="false">
+  </a-cylinder>
+
+  <!-- Trajectory trail (dots) -->
+  <a-entity id="trailContainer"></a-entity>
+
+  <!-- Landing marker -->
+  <a-cylinder id="landingMarker"
+    radius="0.25" height="0.02"
+    color="#f6e05e"
+    visible="false"
+    position="0 0.01 0">
+  </a-cylinder>
+
+  <!-- Distance line on ground -->
+  <a-entity id="distanceLine" visible="false">
+    <a-box id="distLine" height="0.02" width="0.04" depth="0.04" color="#f6e05e"></a-box>
+    <a-text id="distLabel" value="" position="0 0.15 0" color="#f6e05e" width="4" align="center"></a-text>
+  </a-entity>
+
+  <!-- Angle arc visual -->
+  <a-entity id="angleArc"></a-entity>
+
+  <!-- Ground distance markers -->
+  <a-entity id="distanceMarkers"></a-entity>
+
+  <!-- Camera rig -->
+  <a-entity id="cameraRig" position="-4 3 6">
+    <a-camera look-controls wasd-controls fov="75">
+      <a-cursor color="#63b3ed" fuse="false"></a-cursor>
+    </a-camera>
+  </a-entity>
+
+  <!-- Ambient + directional light -->
+  <a-light type="ambient" color="#1a2540" intensity="1.2"></a-light>
+  <a-light type="directional" position="5 10 5" color="#ffffff" intensity="0.8" shadow="cast: true"></a-light>
+  <a-light type="point" position="0 4 0" color="#3182ce" intensity="0.3"></a-light>
+
+</a-scene>
+
+<script>
+// ── STATE ──
+const state = {
+  flying: false,
+  t: 0,
+  v0: 10,
+  angle: 45,
+  h0: 1.5,
+  mass: 1.0,
+  gravity: 9.81,
+  vx: 0, vy: 0,
+  x0: 0, y0: 0, z0: 0,
+  trailPoints: [],
+  animFrame: null,
+  lastTimestamp: null,
+  landed: false,
+  maxHeight: 0,
+};
+
+// ── DOM REFS ──
+const ball         = document.getElementById('ball');
+const trailCont    = document.getElementById('trailContainer');
+const landingMark  = document.getElementById('landingMarker');
+const distLine     = document.getElementById('distLine');
+const distLabel    = document.getElementById('distLabel');
+const distanceLine = document.getElementById('distanceLine');
+const velArrow     = document.getElementById('velArrow');
+const platform     = document.getElementById('platform');
+const phaseBadge   = document.getElementById('phase-badge');
+const conceptText  = document.getElementById('concept-text');
+
+// HUD stats
+const S = id => document.getElementById(id);
+
+// ── SLIDERS ──
+function bindSlider(id, valId, suffix, decimals, stateKey) {
+  const slider = document.getElementById(id);
+  const valEl  = document.getElementById(valId);
+  slider.addEventListener('input', () => {
+    const v = parseFloat(slider.value);
+    valEl.textContent = v.toFixed(decimals) + ' ' + suffix;
+    state[stateKey] = v;
+    if (!state.flying) updateBallStartPosition();
+  });
+}
+
+bindSlider('speedSlider',  'speedVal',  'm/s',  1, 'v0');
+bindSlider('angleSlider',  'angleVal',  '°',    0, 'angle');
+bindSlider('heightSlider', 'heightVal', 'm',    1, 'h0');
+bindSlider('massSlider',   'massVal',   'kg',   1, 'mass');
+bindSlider('gravSlider',   'gravVal',   'm/s²', 2, 'gravity');
+
+function updateBallStartPosition() {
+  ball.setAttribute('position', `0 ${state.h0} 0`);
+  platform.setAttribute('height', state.h0);
+  platform.setAttribute('position', `0 ${state.h0 / 2} 0`);
+  S('statHeight').textContent = state.h0.toFixed(2);
+  S('statG').textContent = state.gravity.toFixed(2);
+  updateConceptText('idle');
+}
+
+// ── THROW ──
+document.getElementById('throwBtn').addEventListener('click', () => {
+  if (state.flying) return;
+  clearTrail();
+  landingMark.setAttribute('visible', false);
+  distanceLine.setAttribute('visible', false);
+
+  const angleRad = state.angle * Math.PI / 180;
+  state.vx = state.v0 * Math.cos(angleRad);
+  state.vy = state.v0 * Math.sin(angleRad);
+  state.t = 0;
+  state.flying = true;
+  state.landed = false;
+  state.maxHeight = state.h0;
+  state.trailPoints = [];
+  state.lastTimestamp = null;
+
+  const pos = ball.getAttribute('position');
+  state.x0 = 0; state.y0 = state.h0; state.z0 = 0;
+
+  document.getElementById('throwBtn').disabled = true;
+  phaseBadge.textContent = 'Ball in flight…';
+  updateConceptText('flying');
+
+  requestAnimationFrame(step);
+});
+
+// ── PHYSICS STEP ──
+function step(timestamp) {
+  if (!state.flying) return;
+  if (!state.lastTimestamp) state.lastTimestamp = timestamp;
+  const dt = Math.min((timestamp - state.lastTimestamp) / 1000, 0.05); // cap dt
+  state.lastTimestamp = timestamp;
+  state.t += dt;
+
+  const t  = state.t;
+  const g  = state.gravity;
+  const x  = state.x0 + state.vx * t;
+  const y  = state.y0 + state.vy * t - 0.5 * g * t * t;
+  const z  = state.z0;
+
+  const vyNow = state.vy - g * t;
+  const speed = Math.sqrt(state.vx * state.vx + vyNow * vyNow);
+  const momentum = state.mass * speed;
+  const ke = 0.5 * state.mass * speed * speed;
+  const dist = Math.abs(x);
+
+  if (y > state.maxHeight) state.maxHeight = y;
+
+  // Update ball position
+  ball.setAttribute('position', `${x} ${Math.max(y, 0)} ${z}`);
+
+  // Trail dot every ~0.12s worth of movement
+  if (state.trailPoints.length === 0 || dist - (state.trailPoints[state.trailPoints.length - 1]?.dist || 0) > 0.3) {
+    spawnTrailDot(x, Math.max(y, 0.01), z);
+    state.trailPoints.push({ x, y: Math.max(y, 0), dist });
+  }
+
+  // Update HUD
+  S('statHeight').textContent = Math.max(y, 0).toFixed(2);
+  S('statDist').textContent   = dist.toFixed(2);
+  S('statSpeed').textContent  = speed.toFixed(2);
+  S('statVx').textContent     = state.vx.toFixed(2);
+  S('statVy').textContent     = vyNow.toFixed(2);
+  S('statMom').textContent    = momentum.toFixed(2);
+  S('statKE').textContent     = ke.toFixed(2);
+  S('statTime').textContent   = t.toFixed(2);
+  S('statG').textContent      = g.toFixed(2);
+
+  // Update concept based on phase
+  if (vyNow > 0.1) updateConceptText('ascending');
+  else if (Math.abs(vyNow) < 0.5) updateConceptText('peak');
+  else updateConceptText('descending');
+
+  // Landed?
+  if (y <= 0 && t > 0.05) {
+    land(x, dist, t);
+    return;
+  }
+
+  state.animFrame = requestAnimationFrame(step);
+}
+
+// ── LAND ──
+function land(x, dist, t) {
+  state.flying = false;
+  ball.setAttribute('position', `${x} 0.18 0`);
+
+  landingMark.setAttribute('position', `${x} 0.01 0`);
+  landingMark.setAttribute('visible', true);
+
+  // Draw distance line on ground
+  const midX = x / 2;
+  distLine.setAttribute('width', Math.abs(x));
+  distLine.setAttribute('position', `${midX} 0.02 0`);
+  distLabel.setAttribute('value', `${dist.toFixed(2)} m`);
+  distLabel.setAttribute('position', `${midX} 0.25 0`);
+  distanceLine.setAttribute('visible', true);
+
+  phaseBadge.textContent = `Landed! ${dist.toFixed(2)} m in ${t.toFixed(2)} s`;
+  document.getElementById('throwBtn').disabled = false;
+  updateConceptText('landed', dist, t);
+  S('statHeight').textContent = '0.00';
+  S('statVy').textContent = '0.00';
+}
+
+// ── RESET ──
+document.getElementById('resetBtn').addEventListener('click', () => {
+  if (state.animFrame) cancelAnimationFrame(state.animFrame);
+  state.flying = false;
+  state.t = 0;
+  clearTrail();
+  landingMark.setAttribute('visible', false);
+  distanceLine.setAttribute('visible', false);
+  document.getElementById('throwBtn').disabled = false;
+  phaseBadge.textContent = 'Ready to throw';
+  updateBallStartPosition();
+  resetHUD();
+  updateConceptText('idle');
+});
+
+function resetHUD() {
+  ['statHeight','statDist','statSpeed','statVx','statVy','statMom','statKE','statTime'].forEach(id => {
+    S(id).textContent = '0.00';
+  });
+  S('statG').textContent = state.gravity.toFixed(2);
+}
+
+// ── TRAIL ──
+function spawnTrailDot(x, y, z) {
+  const dot = document.createElement('a-sphere');
+  dot.setAttribute('position', `${x} ${y} ${z}`);
+  dot.setAttribute('radius', '0.05');
+  dot.setAttribute('color', '#63b3ed');
+  dot.setAttribute('opacity', '0.5');
+  trailCont.appendChild(dot);
+}
+
+function clearTrail() {
+  while (trailCont.firstChild) trailCont.removeChild(trailCont.firstChild);
+}
+
+// ── CONCEPT TEXT ──
+const concepts = {
+  idle: {
+    text: `Set your launch height, angle, and speed.\n\nIn kinematics (Unit 1–2), we describe motion using: position, velocity, acceleration, and time — no forces needed yet.`,
+    formula: `v₀ = initial speed\nθ  = launch angle\nh₀ = launch height`
+  },
+  flying: {
+    text: `Ball launched! Horizontal velocity (vₓ) stays constant — nothing is slowing it sideways.\n\nVertical velocity (vᵧ) decreases because gravity pulls down at ${state.gravity.toFixed(1)} m/s² every second.`,
+    formula: `vₓ = v₀·cos(θ)\nvᵧ = v₀·sin(θ) − g·t`
+  },
+  ascending: {
+    text: `Ball going up! vᵧ > 0.\n\nKinetic energy is converting to gravitational potential energy. The ball is decelerating vertically but vₓ stays the same.`,
+    formula: `KE = ½mv²\nPE = mgh\nvᵧ decreasing…`
+  },
+  peak: {
+    text: `Near the peak! vᵧ ≈ 0.\n\nAt max height, vertical velocity = 0. Only horizontal velocity remains. This is the key insight of 2D kinematics.`,
+    formula: `t_peak = v₀·sin(θ)/g\nh_max = h₀ + vᵧ²/2g`
+  },
+  descending: {
+    text: `Ball falling! vᵧ < 0.\n\nGravity is accelerating the ball downward. Speed increases but direction changes — velocity is a vector!`,
+    formula: `vᵧ = v₀·sin(θ) − g·t\nSpeed = √(vₓ²+vᵧ²)`
+  },
+  landed: null
+};
+
+function updateConceptText(phase, dist, t) {
+  const box   = document.getElementById('concept-text');
+  const fbox  = document.getElementById('formula-box');
+
+  if (phase === 'landed') {
+    const optAngle = 45;
+    box.innerHTML = `Ball landed at <strong style="color:#f6e05e">${dist.toFixed(2)} m</strong> after <strong style="color:#90cdf4">${t.toFixed(2)} s</strong> of flight.<br><br>Try changing the angle. At what angle is distance maximized? (Hint: it's ${optAngle}° on flat ground — try it!)`;
+    fbox.innerHTML = `Range = v₀²·sin(2θ)/g<br>Try θ=30° vs 60° — same range!`;
+    return;
+  }
+
+  const c = concepts[phase];
+  if (!c) return;
+  // Update gravity in flying concept dynamically
+  box.innerHTML = c.text.replace('\n', '<br>').replace(/\n/g, '<br>');
+  fbox.innerHTML = c.formula.replace(/\n/g, '<br>');
+}
+
+// ── INIT ──
+document.addEventListener('DOMContentLoaded', () => {
+  updateBallStartPosition();
+  updateConceptText('idle');
+  resetHUD();
+
+  // Draw distance markers on ground
+  const markers = document.getElementById('distanceMarkers');
+  for (let i = 2; i <= 20; i += 2) {
+    const line = document.createElement('a-box');
+    line.setAttribute('position', `${i} 0.01 0`);
+    line.setAttribute('width', '0.04');
+    line.setAttribute('height', '0.02');
+    line.setAttribute('depth', '0.5');
+    line.setAttribute('color', '#2d4a6e');
+    markers.appendChild(line);
+
+    const label = document.createElement('a-text');
+    label.setAttribute('value', `${i}m`);
+    label.setAttribute('position', `${i} 0.05 0.4`);
+    label.setAttribute('color', '#4a6fa5');
+    label.setAttribute('width', '2');
+    label.setAttribute('align', 'center');
+    markers.appendChild(label);
+  }
+});
+</script>
+
+</body>
+</html>
